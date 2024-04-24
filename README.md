@@ -6,12 +6,12 @@
 
 1. GPT Chain of Density Summarizer
 2. Other Document Metadata for DB Schema
-3. Write function to lancedb
 
 
 ## Setup LanceDB
 1. Setup Document schema to be written to lancedb
 2. Embedding function to write a document to DB
+3. Write function to lancedb from parsed pdf.
 
 ## Search RAG / Lancedb
 1. Semantic Search
