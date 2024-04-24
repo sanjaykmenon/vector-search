@@ -163,6 +163,10 @@ def summarize_article(article: str, summary_steps: int = 3):
         prev_summary = new_summary
     return summary_chain
 
+#TODO convert summary as structured output from LLM including following
+# date, beneficiary details, petitioner details, and key points / reasons.
+
+
 def main(pdf_path: str):
     text = extract_text(pdf_path)
     json_response = summarize_article(text)
