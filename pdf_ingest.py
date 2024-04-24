@@ -166,6 +166,9 @@ def summarize_article(article: str, summary_steps: int = 3):
 #TODO convert summary as structured output from LLM including following
 # date, beneficiary details, petitioner details, and key points / reasons.
 
+#TODO define lancedb schema (as a class and in a separate file )
+
+#TODO write f
 
 def main(pdf_path: str):
     text = extract_text(pdf_path)
