@@ -17,7 +17,9 @@
 1. Simple query search
 2. Advanced RAG / Query planning including splitting queries into sub queries etc.
 
-## Dockerize???
+# Future Work
 
-## Frontend??
+## Add citing sources
+## Content moderation
+
 
