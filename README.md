@@ -14,8 +14,14 @@
 2. Embedding function to write a document to DB
 
 ## Search RAG / Lancedb
-1. Simple query search
-2. Advanced RAG / Query planning including splitting queries into sub queries etc.
+1. Semantic Search
+2. Keyword based Search
+3. Hybrid Search
+4. Result ranking
+5. Citation Sourcing
+
+## Query Planning
+1. Advanced RAG / Query planning including splitting queries into sub queries etc.
 
 # Future Work
 
