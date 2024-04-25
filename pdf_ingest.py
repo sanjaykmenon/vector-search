@@ -24,13 +24,13 @@ def extract_text(pdf_path: str) -> str:
 # Pydantic model for the initial summary
 class InitialSummary(BaseModel):
     """
-    This is an initial summary which should be long (4-5 sentences, ~80 words)
+    This is an initial summary which should be long (5-8 sentences, ~150 words)
     yet highly non-specific, containing little information beyond the entities marked as missing.
-    Use overly verbose languages and fillers (Eg. This article discusses) to reach ~80 words.
+    Use overly verbose languages and fillers (Eg. This article discusses) to reach ~150 words.
     """
     summary: str = Field(
         ...,
-        description="This is a summary of the article provided which is overly verbose and uses fillers. It should be roughly 80 words in length",
+        description="This is a summary of the article provided which is overly verbose and uses fillers. It should be roughly 150 words in length",
     )
     
 class RewrittenSummary(BaseModel):
@@ -50,7 +50,7 @@ class RewrittenSummary(BaseModel):
     """
     summary: str = Field(
         ...,
-        description="This is a new, denser summary of identical length which covers every entity and detail from the previous summary plus the Missing Entities. It should have the same length ( ~ 80 words ) as the previous summary and should be easily understood without the Article",
+        description="This is a new, denser summary of identical length which covers every entity and detail from the previous summary plus the Missing Entities. It should have the same length ( ~ 120 words ) as the previous summary and should be easily understood without the Article",
     )
     absent: List[str] = Field(
         ...,
@@ -65,12 +65,12 @@ class RewrittenSummary(BaseModel):
     @field_validator("summary")
     def min_length(cls, v: str) -> str:
         """
-        Validates that the summary is at least 60 words long.
+        Validates that the summary is at least 100 words long.
         """
         tokens = nltk.word_tokenize(v)
         num_tokens = len(tokens)
-        if num_tokens < 60:
-            raise ValueError("The current summary is too short. Please make sure that you generate a new summary that is around 80 words long.")
+        if num_tokens < 100:
+            raise ValueError("The current summary is too short. Please make sure that you generate a new summary that is around 100 words long.")
         return v
 
     @field_validator("summary")
@@ -83,14 +83,24 @@ class RewrittenSummary(BaseModel):
         doc = nlp(v)
         num_entities = len(doc.ents)
         density = num_entities / num_tokens
-        if density < 0.08:
+        if density < 0.05:
             raise ValueError(f"The summary of {v} has too few entities. Please regenerate a new summary with more new entities added to it. Remember that new entities can be added at any point of the summary.")
         return v
+    
+class DocumentInfo(BaseModel):
+    title: str = Field(..., description="The title of the document")
+    beneficiary_details: list[str] = Field(..., description="provide details of beneficiary")
+    beneficiary_status: str = Field(..., description="type of non-immigrant status")
+    key_reasons: list[str] = Field(..., description="provide key points detailed list of reasons why petition was accepted / denied  / dismissed")
+    summary: str = Field(..., description="summary of document")
+    date: dt = Field(..., description="date present in document") 
 
+    def set_summary(self, summary: str):
+        self.summary = summary
 # Load the Spacy model
 nlp = spacy.load("en_core_web_sm")
 
-def summarize_article(article: str, summary_steps: int = 3):
+def summarize_article(article: str, summary_steps: int = 2):
     summary_chain = []
 
     #generating initial summary
@@ -100,16 +110,16 @@ def summarize_article(article: str, summary_steps: int = 3):
         messages=[
             {
                 "role": "system",
-                "content": "Write a summary about the article that is long (4-5 sentences) yet highly non-specific. Use overly, verbose language and fillers(eg.,'this article discusses') to reach ~80 words"
+                "content": "Write a summary about the article that is long (5-8 sentences) yet highly non-specific. Use overly, verbose language and fillers(eg.,'this article discusses') to reach ~150 words"
             },
             {
                 "role":"user", "content": f"Here is the Article: {article}"},
             {
                 "role":"user",
-                "content": "The generated summary should be about 80 words",
+                "content": "The generated summary should be about 100 words",
             },
         ],
-        max_retries=2,
+        max_retries=3,
     )
     summary_chain.append(summary.summary)
     print(f"Initial Summary:\n{summary.summary}\n")
@@ -155,7 +165,7 @@ def summarize_article(article: str, summary_steps: int = 3):
                 *missing_entity_message,
             ],
             max_retries=3, 
-            max_tokens=1000,
+            max_tokens=1500,
             response_model=RewrittenSummary,
         )
         summary_chain.append(new_summary.summary)
@@ -163,8 +173,20 @@ def summarize_article(article: str, summary_steps: int = 3):
         prev_summary = new_summary
     return summary_chain
 
-#TODO convert summary as structured output from LLM including following
-# date, beneficiary details, petitioner details, and key points / reasons.
+
+def get_structured_output(text: str):
+    """
+    Uses the patched OpenAI client to get structured output as JSON.
+    """
+    response = client.chat.completions.create(
+        model="gpt-3.5-turbo-0125",
+        response_model=DocumentInfo,  
+        messages=[
+            {"role": "user", "content": f"You are an immigration attorney and you want to understand this document better. \n{text}"}
+        ]
+    )
+    data = response.model_dump_json()
+    return DocumentInfo.model_validate(data) 
 
 #TODO define lancedb schema (as a class and in a separate file )
 
@@ -172,8 +194,10 @@ def summarize_article(article: str, summary_steps: int = 3):
 
 def main(pdf_path: str):
     text = extract_text(pdf_path)
-    json_response = summarize_article(text)
-    print(json_response)
+    document_summary = summarize_article(text)
+    document_info = get_structured_output(text)
+    document_info.set_summary(document_summary)
+    print(document_info)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Extract and process PDF text into structured JSON data.")
