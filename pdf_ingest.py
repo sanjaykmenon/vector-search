@@ -69,7 +69,7 @@ class RewrittenSummary(BaseModel):
         """
         tokens = nltk.word_tokenize(v)
         num_tokens = len(tokens)
-        if num_tokens < 100:
+        if num_tokens < 50:
             raise ValueError("The current summary is too short. Please make sure that you generate a new summary that is around 100 words long.")
         return v
 
@@ -83,7 +83,7 @@ class RewrittenSummary(BaseModel):
         doc = nlp(v)
         num_entities = len(doc.ents)
         density = num_entities / num_tokens
-        if density < 0.05:
+        if density < 0.02:
             raise ValueError(f"The summary of {v} has too few entities. Please regenerate a new summary with more new entities added to it. Remember that new entities can be added at any point of the summary.")
         return v
     
@@ -100,7 +100,7 @@ class DocumentInfo(BaseModel):
 # Load the Spacy model
 nlp = spacy.load("en_core_web_sm")
 
-def summarize_article(article: str, summary_steps: int = 2):
+def summarize_article(article: str, summary_steps: int = 1):
     summary_chain = []
 
     #generating initial summary
@@ -110,16 +110,16 @@ def summarize_article(article: str, summary_steps: int = 2):
         messages=[
             {
                 "role": "system",
-                "content": "Write a summary about the article that is long (5-8 sentences) yet highly non-specific. Use overly, verbose language and fillers(eg.,'this article discusses') to reach ~150 words"
+                "content": "Write a denser summary that includes more named entities such as people, locations, and institutions. The summary should be compact but still cover all details from the original summary, including new entities to ensure it is rich in information and meets our entity density requirement."
             },
             {
                 "role":"user", "content": f"Here is the Article: {article}"},
             {
                 "role":"user",
-                "content": "The generated summary should be about 100 words",
+                "content": "The generated summary should be about 120 words",
             },
         ],
-        max_retries=3,
+        max_retries=2,
     )
     summary_chain.append(summary.summary)
     print(f"Initial Summary:\n{summary.summary}\n")
@@ -164,8 +164,8 @@ def summarize_article(article: str, summary_steps: int = 2):
                 },
                 *missing_entity_message,
             ],
-            max_retries=3, 
-            max_tokens=1500,
+            max_retries=2, 
+            max_tokens=2000,
             response_model=RewrittenSummary,
         )
         summary_chain.append(new_summary.summary)
@@ -182,11 +182,10 @@ def get_structured_output(text: str):
         model="gpt-3.5-turbo-0125",
         response_model=DocumentInfo,  
         messages=[
-            {"role": "user", "content": f"You are an immigration attorney and you want to understand this document better. \n{text}"}
+            {"role": "user", "content": f"You are an immigration attorney and need to get the key points associated with this document. \n{text}"}
         ]
     )
-    data = response.model_dump_json()
-    return DocumentInfo.model_validate(data) 
+    return response
 
 #TODO define lancedb schema (as a class and in a separate file )
 
