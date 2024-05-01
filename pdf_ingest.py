@@ -1,4 +1,4 @@
-from datetime import date as dt
+from datetime import date as dt, datetime
 from openai import OpenAI
 from pydantic import BaseModel, Field, field_validator
 import argparse
@@ -7,6 +7,23 @@ import instructor
 import nltk
 import spacy
 from typing import List
+import lancedb
+from lancedb.pydantic import LanceModel, vector
+import pyarrow as pa
+import json
+import pandas as pd
+from dotenv import load_dotenv
+import os
+import supabase
+import uuid
+
+load_dotenv()
+
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+SUPABASE_KEY = os.getenv("SUPABASE_KEY")
+
+supabase = supabase.create_client(SUPABASE_URL, SUPABASE_KEY)
+
 
 # Initialize the instructor client
 client = instructor.from_openai(OpenAI())
@@ -86,14 +103,24 @@ class RewrittenSummary(BaseModel):
         if density < 0.02:
             raise ValueError(f"The summary of {v} has too few entities. Please regenerate a new summary with more new entities added to it. Remember that new entities can be added at any point of the summary.")
         return v
-    
+
+# class DetailItem(BaseModel):
+#     detail: str = Field(..., description="individual detail of beneficiary")
+
+# class DetailItem(BaseModel):
+#     reason: str = Field(..., description="individual reason of petition acceptance / denial / dismissal")
+
+
 class DocumentInfo(BaseModel):
     title: str = Field(..., description="The title of the document")
-    beneficiary_details: list[str] = Field(..., description="provide details of beneficiary")
+    beneficiary_details: List[str] = Field(..., description="provide details of beneficiary")
     beneficiary_status: str = Field(..., description="type of non-immigrant status")
-    key_reasons: list[str] = Field(..., description="provide key points detailed list of reasons why petition was accepted / denied  / dismissed")
-    summary: str = Field(..., description="summary of document")
-    date: dt = Field(..., description="date present in document") 
+    key_reasons: List[str] = Field(..., description="provide key points detailed list of reasons why petition was accepted / denied  / dismissed")
+    summary: List[str] = Field(..., description="summary of document")
+    date_of_application: dt = Field(..., description="date present in document")
+
+
+    summary: str = None
 
     def set_summary(self, summary: str):
         self.summary = summary
@@ -187,16 +214,40 @@ def get_structured_output(text: str):
     )
     return response
 
-#TODO define lancedb schema (as a class and in a separate file )
+#TODO define in a separate file, add petitioner details column
 
-#TODO write f
 
 def main(pdf_path: str):
     text = extract_text(pdf_path)
     document_summary = summarize_article(text)
     document_info = get_structured_output(text)
     document_info.set_summary(document_summary)
-    print(document_info)
+    #convert to a dictiionary
+    document_info_dict = document_info.model_dump()
+
+    document_info_dict['id'] = str(uuid.uuid4())
+    document_info_dict['created_at'] = datetime.now().isoformat()
+    #document_info_dict['date_of_application']  = datetime.strptime(document_info_dict['date_of_application'], '%Y-%m-%d')
+    document_info_dict['date_of_application'] = document_info_dict['date_of_application'].isoformat() #do we need 2 steps?
+
+    #insert data to supabase
+    response = supabase.table("oa1_aao").insert(document_info_dict).execute()
+
+    #check response
+    if response.error:
+        print(f"Error: {response.error}")
+    else:
+        print(f"Data inserted successfully: {response.data}")
+
+    print("-----------------")
+    print("Beneficiary Details")
+    print(document_info_dict.beneficiary_details)
+    print("-----------------")
+    print("Key Reasons")
+    print(document_info_dict.key_reasons)
+    print("-----------------")
+    print("Summary")
+    print(document_info_dict.summary)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Extract and process PDF text into structured JSON data.")
