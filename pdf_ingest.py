@@ -15,6 +15,7 @@ import pandas as pd
 from dotenv import load_dotenv
 import os
 import supabase
+from supabase.exceptions import PostgrestError
 import uuid
 
 load_dotenv()
@@ -26,7 +27,10 @@ supabase = supabase.create_client(SUPABASE_URL, SUPABASE_KEY)
 
 
 # Initialize the instructor client
-client = instructor.from_openai(OpenAI())
+instructor_client = instructor.from_openai(OpenAI())
+
+#openai client
+openai_client = OpenAI()
 
 # Function to extract text from a PDF
 def extract_text(pdf_path: str) -> str:
@@ -104,12 +108,6 @@ class RewrittenSummary(BaseModel):
             raise ValueError(f"The summary of {v} has too few entities. Please regenerate a new summary with more new entities added to it. Remember that new entities can be added at any point of the summary.")
         return v
 
-# class DetailItem(BaseModel):
-#     detail: str = Field(..., description="individual detail of beneficiary")
-
-# class DetailItem(BaseModel):
-#     reason: str = Field(..., description="individual reason of petition acceptance / denial / dismissal")
-
 
 class DocumentInfo(BaseModel):
     title: str = Field(..., description="The title of the document")
@@ -118,12 +116,17 @@ class DocumentInfo(BaseModel):
     key_reasons: List[str] = Field(..., description="provide key points detailed list of reasons why petition was accepted / denied  / dismissed")
     summary: List[str] = Field(..., description="summary of document")
     date_of_application: dt = Field(..., description="date present in document")
-
+    summary_embedding: List[float] = Field(..., description="OpenAI embedding of the summary")
 
     summary: str = None
+    summary_embedding: float = None
 
     def set_summary(self, summary: str):
         self.summary = summary
+    
+    def set_summary_embedding(self, summary_embedding: float):
+        self.summary_embedding = summary_embedding
+
 # Load the Spacy model
 nlp = spacy.load("en_core_web_sm")
 
@@ -131,7 +134,7 @@ def summarize_article(article: str, summary_steps: int = 1):
     summary_chain = []
 
     #generating initial summary
-    summary: InitialSummary = client.chat.completions.create(
+    summary: InitialSummary = instructor_client.chat.completions.create(
         model="gpt-3.5-turbo-0125",
         response_model=InitialSummary,
         messages=[
@@ -164,7 +167,7 @@ def summarize_article(article: str, summary_steps: int = 1):
                 },
             ]
         )
-        new_summary: RewrittenSummary = client.chat.completions.create( 
+        new_summary: RewrittenSummary = instructor_client.chat.completions.create( 
             model="gpt-3.5-turbo-0125",
             messages=[
                 {
@@ -205,7 +208,7 @@ def get_structured_output(text: str):
     """
     Uses the patched OpenAI client to get structured output as JSON.
     """
-    response = client.chat.completions.create(
+    response = instructor_client.chat.completions.create(
         model="gpt-3.5-turbo-0125",
         response_model=DocumentInfo,  
         messages=[
@@ -214,7 +217,14 @@ def get_structured_output(text: str):
     )
     return response
 
-#TODO define in a separate file, add petitioner details column
+#TODO write a function to generate openai embedding from summary attribute of DocumentInfo
+
+def generate_openai_embedding(text: str):
+    response = openai_client.embeddings.create(
+        input=text,
+        model="text-embedding-3-small"
+    )
+    return response.data[0].embedding
 
 
 def main(pdf_path: str):
@@ -222,6 +232,7 @@ def main(pdf_path: str):
     document_summary = summarize_article(text)
     document_info = get_structured_output(text)
     document_info.set_summary(document_summary)
+    document_info.set_summary_embedding(generate_openai_embedding(document_summary))
     #convert to a dictiionary
     document_info_dict = document_info.model_dump()
 
@@ -230,14 +241,12 @@ def main(pdf_path: str):
     #document_info_dict['date_of_application']  = datetime.strptime(document_info_dict['date_of_application'], '%Y-%m-%d')
     document_info_dict['date_of_application'] = document_info_dict['date_of_application'].isoformat() #do we need 2 steps?
 
-    #insert data to supabase
-    response = supabase.table("oa1_aao").insert(document_info_dict).execute()
 
-    #check response
-    if response.error:
-        print(f"Error: {response.error}")
-    else:
-        print(f"Data inserted successfully: {response.data}")
+try:
+    db_table_write = supabase.table("oa1_aao").insert(document_info_dict).execute()
+
+except PostgresError as e:
+    print(f"Error inserting data: {e}")
 
     print("-----------------")
     print("Beneficiary Details")
