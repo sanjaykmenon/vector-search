@@ -111,7 +111,7 @@ class RewrittenSummary(BaseModel):
 
 class DocumentInfo(BaseModel):
     title: str = Field(..., description="The title of the document")
-    beneficiary_details: List[str] = Field(..., description="provide details of beneficiary")
+    beneficiary_details: List[str] = Field(..., description="provide details of beneficiary including classification such as O-1, EB-1, EB-2, etc.")
     beneficiary_status: str = Field(..., description="type of non-immigrant status")
     key_reasons: List[str] = Field(..., description="provide key points detailed list of reasons why petition was accepted / denied  / dismissed")
     summary: List[str] = Field(..., description="summary of document")
