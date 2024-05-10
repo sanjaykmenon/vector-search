@@ -15,13 +15,13 @@ import pandas as pd
 from dotenv import load_dotenv
 import os
 import supabase
-from supabase.exceptions import PostgrestError
 import uuid
 
 load_dotenv()
 
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
+GPT_MODEL = os.getenv("GPT_MODEL")
 
 supabase = supabase.create_client(SUPABASE_URL, SUPABASE_KEY)
 
@@ -45,13 +45,13 @@ def extract_text(pdf_path: str) -> str:
 # Pydantic model for the initial summary
 class InitialSummary(BaseModel):
     """
-    This is an initial summary which should be long (5-8 sentences, ~150 words)
+    This is an initial summary which should be long (15 - 20 sentences, ~500 words)
     yet highly non-specific, containing little information beyond the entities marked as missing.
-    Use overly verbose languages and fillers (Eg. This article discusses) to reach ~150 words.
+    Use overly verbose languages and fillers (Eg. This article discusses) to reach ~500 words.
     """
     summary: str = Field(
         ...,
-        description="This is a summary of the article provided which is overly verbose and uses fillers. It should be roughly 150 words in length",
+        description="This is a summary of the article provided which is overly verbose and uses fillers. It should be roughly 500 words in length",
     )
     
 class RewrittenSummary(BaseModel):
@@ -71,7 +71,7 @@ class RewrittenSummary(BaseModel):
     """
     summary: str = Field(
         ...,
-        description="This is a new, denser summary of identical length which covers every entity and detail from the previous summary plus the Missing Entities. It should have the same length ( ~ 120 words ) as the previous summary and should be easily understood without the Article",
+        description="This is a new, denser summary of identical length which covers every entity and detail from the previous summary plus the Missing Entities. It should have the same length ( ~ 500 words ) as the previous summary and should be easily understood without the Article",
     )
     absent: List[str] = Field(
         ...,
@@ -91,7 +91,7 @@ class RewrittenSummary(BaseModel):
         tokens = nltk.word_tokenize(v)
         num_tokens = len(tokens)
         if num_tokens < 50:
-            raise ValueError("The current summary is too short. Please make sure that you generate a new summary that is around 100 words long.")
+            raise ValueError("The current summary is too short. Please make sure that you generate a new summary that is around 300 words long.")
         return v
 
     @field_validator("summary")
@@ -104,7 +104,7 @@ class RewrittenSummary(BaseModel):
         doc = nlp(v)
         num_entities = len(doc.ents)
         density = num_entities / num_tokens
-        if density < 0.02:
+        if density < 0.04:
             raise ValueError(f"The summary of {v} has too few entities. Please regenerate a new summary with more new entities added to it. Remember that new entities can be added at any point of the summary.")
         return v
 
@@ -113,7 +113,7 @@ class DocumentInfo(BaseModel):
     title: str = Field(..., description="The title of the document with specific details")
     beneficiary_details: List[str] = Field(..., description="provide details of beneficiary with as much specificity as possible")
     beneficiary_status: str = Field(..., description="type of non-immigrant status and be very specific about the type of visa / status")
-    key_reasons: List[str] = Field(..., description="provide a specific and detailed list of reasons why petition was accepted / denied  / dismissed")
+    key_reasons: List[str] = Field(..., description="provide a specific and detailed list of reasons why petition was accepted / denied  / dismissed with details")
     summary: List[str] = Field(..., description="summary of document")
     date_of_application: dt = Field(..., description="date present in document")
     summary_embedding: List[float] = Field(..., description="OpenAI embedding of the summary")
@@ -135,7 +135,7 @@ def summarize_article(article: str, summary_steps: int = 1):
 
     #generating initial summary
     summary: InitialSummary = instructor_client.chat.completions.create(
-        model="gpt-3.5-turbo-0125",
+        model=GPT_MODEL,
         response_model=InitialSummary,
         messages=[
             {
@@ -146,12 +146,12 @@ def summarize_article(article: str, summary_steps: int = 1):
                 "role":"user", "content": f"Here is the Article: {article}"},
             {
                 "role":"user",
-                "content": "The generated summary should be about 120 words",
+                "content": "The generated summary should be about 300 words",
             },
         ],
         max_retries=2,
     )
-    summary_chain.append(summary.summary)
+    #summary_chain.append(summary.summary)
     print(f"Initial Summary:\n{summary.summary}\n")
 
     prev_summary = None
@@ -168,7 +168,7 @@ def summarize_article(article: str, summary_steps: int = 1):
             ]
         )
         new_summary: RewrittenSummary = instructor_client.chat.completions.create( 
-            model="gpt-3.5-turbo-0125",
+            model=GPT_MODEL,
             messages=[
                 {
                     "role": "system",
@@ -195,13 +195,13 @@ def summarize_article(article: str, summary_steps: int = 1):
                 *missing_entity_message,
             ],
             max_retries=2, 
-            max_tokens=2000,
+            max_tokens=3000,
             response_model=RewrittenSummary,
         )
         summary_chain.append(new_summary.summary)
         print(f"Summary Revision {i+1}:\n{new_summary.summary}\n") 
         prev_summary = new_summary
-    return summary_chain
+    return summary_chain[-1]
 
 
 def get_structured_output(text: str):
@@ -209,10 +209,10 @@ def get_structured_output(text: str):
     Uses the patched OpenAI client to get structured output as JSON.
     """
     response = instructor_client.chat.completions.create(
-        model="gpt-3.5-turbo-0125",
+        model=GPT_MODEL,
         response_model=DocumentInfo,  
         messages=[
-            {"role": "user", "content": f"You are an immigration attorney and need to get the key points associated with this document. \n{text}"}
+            {"role": "user", "content": f"You are an immigration attorney and need to extract entities that are important to this document. Always ensure any regulations mentioned in the document are captured and extracted when you review the article. \n{text}"}
         ]
     )
     return response
@@ -240,23 +240,24 @@ def main(pdf_path: str):
     document_info_dict['created_at'] = datetime.now().isoformat()
     #document_info_dict['date_of_application']  = datetime.strptime(document_info_dict['date_of_application'], '%Y-%m-%d')
     document_info_dict['date_of_application'] = document_info_dict['date_of_application'].isoformat() #do we need 2 steps?
+    document_info_dict['beneficiary_details'] = [document_info_dict['beneficiary_details']]
 
 
-try:
-    db_table_write = supabase.table("oa1_aao").insert(document_info_dict).execute()
+    try:
+        db_table_write = supabase.table("oa1_aao").insert(document_info_dict).execute()
 
-except PostgresError as e:
-    print(f"Error inserting data: {e}")
+    except ValueError as e:
+        print(f"Error inserting data: {e}")
 
-    print("-----------------")
-    print("Beneficiary Details")
-    print(document_info_dict.beneficiary_details)
-    print("-----------------")
-    print("Key Reasons")
-    print(document_info_dict.key_reasons)
-    print("-----------------")
-    print("Summary")
-    print(document_info_dict.summary)
+        print("-----------------")
+        print("Beneficiary Details")
+        print(document_info_dict.beneficiary_details)
+        print("-----------------")
+        print("Key Reasons")
+        print(document_info_dict.key_reasons)
+        print("-----------------")
+        print("Summary")
+        print(document_info_dict.summary)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Extract and process PDF text into structured JSON data.")
