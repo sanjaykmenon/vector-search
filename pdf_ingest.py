@@ -22,6 +22,7 @@ load_dotenv()
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 GPT_MODEL = os.getenv("GPT_MODEL")
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
 supabase = supabase.create_client(SUPABASE_URL, SUPABASE_KEY)
 
@@ -71,7 +72,7 @@ class RewrittenSummary(BaseModel):
     """
     summary: str = Field(
         ...,
-        description="This is a new, denser summary of identical length which covers every entity and detail from the previous summary plus the Missing Entities. It should have the same length ( ~ 500 words ) as the previous summary and should be easily understood without the Article",
+        description="This is a new, denser summary of identical length which covers every entity and detail from the previous summary plus the Missing Entities. It should have the lesser length ( ~ 250 words ) as the previous summary and should be easily understood without the Article",
     )
     absent: List[str] = Field(
         ...,
@@ -104,7 +105,7 @@ class RewrittenSummary(BaseModel):
         doc = nlp(v)
         num_entities = len(doc.ents)
         density = num_entities / num_tokens
-        if density < 0.04:
+        if density < 0.02:
             raise ValueError(f"The summary of {v} has too few entities. Please regenerate a new summary with more new entities added to it. Remember that new entities can be added at any point of the summary.")
         return v
 
@@ -113,8 +114,8 @@ class DocumentInfo(BaseModel):
     title: str = Field(..., description="The title of the document with specific details")
     beneficiary_details: List[str] = Field(..., description="provide details of beneficiary with as much specificity as possible")
     beneficiary_status: str = Field(..., description="type of non-immigrant status and be very specific about the type of visa / status")
-    key_reasons: List[str] = Field(..., description="provide a specific and detailed list of reasons why petition was accepted / denied  / dismissed with details")
-    summary: List[str] = Field(..., description="summary of document")
+    key_reasons: List[str] = Field(..., description="provide a specific and detailed list of reasons why petition was accepted / denied  / dismissed with details with as much specificity as possible")
+    summary: List[str] = Field(..., description="add nothing here. this will always be empty")
     date_of_application: dt = Field(..., description="date present in document")
     summary_embedding: List[float] = Field(..., description="OpenAI embedding of the summary")
 
@@ -140,7 +141,7 @@ def summarize_article(article: str, summary_steps: int = 1):
         messages=[
             {
                 "role": "system",
-                "content": "Write a denser summary that includes more named entities such as people, locations, and institutions. The summary should be compact but still cover all details from the original summary, including new entities to ensure it is rich in information and meets our entity density requirement."
+                "content": "Write a denser summary that includes more named entities such as people, locations, and institutions, legal regulations and criteria. The summary should be compact but still cover all details from the original summary, including new entities to ensure it is rich in information and meets our entity density requirement."
             },
             {
                 "role":"user", "content": f"Here is the Article: {article}"},
@@ -209,7 +210,7 @@ def get_structured_output(text: str):
     Uses the patched OpenAI client to get structured output as JSON.
     """
     response = instructor_client.chat.completions.create(
-        model=GPT_MODEL,
+        model="gpt-4-turbo-2024-04-09",
         response_model=DocumentInfo,  
         messages=[
             {"role": "user", "content": f"You are an immigration attorney and need to extract entities that are important to this document. Always ensure any regulations mentioned in the document are captured and extracted when you review the article. \n{text}"}
