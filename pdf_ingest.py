@@ -72,7 +72,7 @@ class RewrittenSummary(BaseModel):
     """
     summary: str = Field(
         ...,
-        description="This is a new, denser summary of identical length which covers every entity and detail from the previous summary plus the Missing Entities. It should have the lesser length ( ~ 250 words ) as the previous summary and should be easily understood without the Article",
+        description="This is a new, denser summary of identical length which covers every entity and detail from the previous summary plus the Missing Entities. It should have a similar length ( ~ 300 words ) as the previous summary and should be easily understood without the Article",
     )
     absent: List[str] = Field(
         ...,
@@ -114,7 +114,7 @@ class DocumentInfo(BaseModel):
     title: str = Field(..., description="The title of the document with specific details")
     beneficiary_details: List[str] = Field(..., description="provide details of beneficiary that can be used to provide context to the document")
     beneficiary_status: str = Field(..., description="type of non-immigrant status and be very specific about the type of visa / status")
-    key_reasons: List[str] = Field(..., description="provide a specific and detailed list of reasons why petition was accepted / denied  / dismissed with any relevant details in the context of the entire document")
+    key_reasons: List[str] = Field(..., description="Provide a comprehensive list of reasons explaining the decision on the petition (accepted, denied, or dismissed). Include all relevant details from the document that contributed to this decision, ensuring the reasons are specific, detailed, and contextualized.")
     summary: List[str] = Field(..., description="add details of entites, people, locations and any other specific detail")
     date_of_application: dt = Field(..., description="date present in document")
     summary_embedding: List[float] = Field(..., description="OpenAI embedding of the summary")
@@ -152,7 +152,7 @@ def summarize_article(article: str, summary_steps: int = 1):
         ],
         max_retries=2,
     )
-    #summary_chain.append(summary.summary)
+    summary_chain.append(summary.summary)
     print(f"Initial Summary:\n{summary.summary}\n")
 
     prev_summary = None
@@ -213,7 +213,7 @@ def get_structured_output(text: str):
         model="gpt-4-turbo-2024-04-09",
         response_model=DocumentInfo,  
         messages=[
-            {"role": "user", "content": f"You are an immigration attorney and need to extract any useful entities that are important to contextualize this document in the most detailed manner. \n{text}"}
+            {"role": "user", "content": f"As an immigration attorney, your task is to extract and identify all pertinent entities from this document. This includes, but is not limited to, individuals, organizations, locations, legal terms, and any specific immigration laws or policies mentioned. Your goal is to provide a comprehensive context for this document. \n{text}"}
         ]
     )
     return response
