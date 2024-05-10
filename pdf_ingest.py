@@ -114,7 +114,7 @@ class DocumentInfo(BaseModel):
     title: str = Field(..., description="The title of the document with specific details")
     beneficiary_details: List[str] = Field(..., description="provide details of beneficiary that can be used to provide context to the document")
     beneficiary_status: str = Field(..., description="type of non-immigrant status and be very specific about the type of visa / status")
-    key_reasons: List[str] = Field(..., description="provide a specific and detailed list of reasons why petition was accepted / denied  / dismissed with details with as much specificity as possible and cite the relevant criteria")
+    key_reasons: List[str] = Field(..., description="provide a specific and detailed list of reasons why petition was accepted / denied  / dismissed with any relevant details in the context of the entire document")
     summary: List[str] = Field(..., description="add details of entites, people, locations and any other specific detail")
     date_of_application: dt = Field(..., description="date present in document")
     summary_embedding: List[float] = Field(..., description="OpenAI embedding of the summary")
@@ -141,7 +141,7 @@ def summarize_article(article: str, summary_steps: int = 1):
         messages=[
             {
                 "role": "system",
-                "content": "Write a denser summary that includes more named entities such as people, locations, and institutions, legal regulations and criteria. The summary should be compact but still cover all details from the original summary, including new entities to ensure it is rich in information and meets our entity density requirement."
+                "content": "You are an expert in immigration law. Write a concise summary of the following document that includes key details such as relevant laws, legal terms, people, locations, and institutions. The summary should be compact but still cover all details from the original document, including new entities to ensure it is rich in information and meets our entity density requirement."
             },
             {
                 "role":"user", "content": f"Here is the Article: {article}"},
@@ -213,7 +213,7 @@ def get_structured_output(text: str):
         model="gpt-4-turbo-2024-04-09",
         response_model=DocumentInfo,  
         messages=[
-            {"role": "user", "content": f"You are an immigration attorney and need to extract entities that are important to this document. Always ensure any regulations mentioned in the document are captured and extracted when you review the article. \n{text}"}
+            {"role": "user", "content": f"You are an immigration attorney and need to extract any useful entities that are important to contextualize this document in the most detailed manner. \n{text}"}
         ]
     )
     return response
