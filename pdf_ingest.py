@@ -112,10 +112,10 @@ class RewrittenSummary(BaseModel):
 
 class DocumentInfo(BaseModel):
     title: str = Field(..., description="The title of the document with specific details")
-    beneficiary_details: List[str] = Field(..., description="provide details of beneficiary with as much specificity as possible")
+    beneficiary_details: List[str] = Field(..., description="provide details of beneficiary that can be used to provide context to the document")
     beneficiary_status: str = Field(..., description="type of non-immigrant status and be very specific about the type of visa / status")
-    key_reasons: List[str] = Field(..., description="provide a specific and detailed list of reasons why petition was accepted / denied  / dismissed with details with as much specificity as possible")
-    summary: List[str] = Field(..., description="add nothing here. this will always be empty")
+    key_reasons: List[str] = Field(..., description="provide a specific and detailed list of reasons why petition was accepted / denied  / dismissed with details with as much specificity as possible and cite the relevant criteria")
+    summary: List[str] = Field(..., description="add details of entites, people, locations and any other specific detail")
     date_of_application: dt = Field(..., description="date present in document")
     summary_embedding: List[float] = Field(..., description="OpenAI embedding of the summary")
 
