@@ -113,7 +113,7 @@ class RewrittenSummary(BaseModel):
 class DocumentInfo(BaseModel):
     title: str = Field(..., description="The title of the document with specific details")
     beneficiary_details: List[str] = Field(..., description="provide details of beneficiary that can be used to provide context to the document")
-    beneficiary_status: str = Field(..., description="type of non-immigrant status and be very specific about the type of visa / status")
+    beneficiary_status: str = Field(..., description="provide details of the type of visa / status")
     key_reasons: List[str] = Field(..., description="Provide a comprehensive list of reasons explaining the decision on the petition (accepted, denied, or dismissed). Include all relevant details from the document that contributed to this decision, ensuring the reasons are specific, detailed, and contextualized.")
     summary: List[str] = Field(..., description="add details of entites, people, locations and any other specific detail")
     date_of_application: dt = Field(..., description="date present in document")
@@ -213,7 +213,7 @@ def get_structured_output(text: str):
         model="gpt-4-turbo-2024-04-09",
         response_model=DocumentInfo,  
         messages=[
-            {"role": "user", "content": f"As an immigration attorney, your task is to extract and identify all pertinent entities from this document. This includes, but is not limited to, individuals, organizations, locations, legal terms, and any specific immigration laws or policies mentioned. Your goal is to provide a comprehensive context for this document. \n{text}"}
+            {"role": "user", "content": f"As an immigration attorney, your task is to extract all relevant entities from this document. Your goal is to provide as much detail with specificity about this document as you can. \n{text}"}
         ]
     )
     return response
