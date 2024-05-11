@@ -120,12 +120,12 @@ class DocumentInfo(BaseModel):
     summary_embedding: List[float] = Field(..., description="OpenAI embedding of the summary")
 
     summary: str = None
-    summary_embedding: float = None
+    #summary_embedding: float = None
 
     def set_summary(self, summary: str):
         self.summary = summary
     
-    def set_summary_embedding(self, summary_embedding: float):
+    def set_summary_embedding(self, summary_embedding: List[float]):
         self.summary_embedding = summary_embedding
 
 # Load the Spacy model
@@ -233,7 +233,8 @@ def main(pdf_path: str):
     document_summary = summarize_article(text)
     document_info = get_structured_output(text)
     document_info.set_summary(document_summary)
-    document_info.set_summary_embedding(generate_openai_embedding(document_summary))
+    embedding = generate_openai_embedding(document_summary)
+    document_info.summary_embedding = embedding
     #convert to a dictiionary
     document_info_dict = document_info.model_dump()
 
@@ -241,7 +242,7 @@ def main(pdf_path: str):
     document_info_dict['created_at'] = datetime.now().isoformat()
     #document_info_dict['date_of_application']  = datetime.strptime(document_info_dict['date_of_application'], '%Y-%m-%d')
     document_info_dict['date_of_application'] = document_info_dict['date_of_application'].isoformat() #do we need 2 steps?
-    document_info_dict['beneficiary_details'] = [document_info_dict['beneficiary_details']]
+    #document_info_dict['beneficiary_details'] = [document_info_dict['beneficiary_details']]
 
 
     try:
