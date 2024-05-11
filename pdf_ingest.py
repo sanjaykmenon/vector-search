@@ -114,7 +114,7 @@ class DocumentInfo(BaseModel):
     title: str = Field(..., description="The title of the document with specific details")
     beneficiary_details: List[str] = Field(..., description="provide details of beneficiary that can be used to provide context to the document")
     beneficiary_status: str = Field(..., description="provide details of the type of visa / status")
-    key_reasons: List[str] = Field(..., description="Provide details of reasons explaining the decision on the petition (accepted, denied, or dismissed). Include details of the evidence that contributed to this decision")
+    key_reasons: List[str] = Field(..., description="Provide details of reasons explaining the decision on the petition (accepted, denied, or dismissed). Include details of the evidence that was presented.")
     summary: List[str] = Field(..., description="add details of entites, people, locations and any other specific detail")
     date_of_application: dt = Field(..., description="date present in document")
     summary_embedding: List[float] = Field(..., description="OpenAI embedding of the summary")
@@ -144,10 +144,10 @@ def summarize_article(article: str, beneficiary_details: List[str], key_reasons:
         messages=[
             {
                 "role": "system",
-                "content": "You are an expert in immigration law. Write a concise summary of the following document that includes key details such as relevant laws, legal terms, people, locations, and institutions. The summary should be compact but still cover all details from the original document, including new entities to ensure it is rich in information and meets our entity density requirement."
+                "content": "You are an expert in immigration law. Write a concise summary of the following document that includes information such as the beneficiary details, relevant evidence presented and the key reasons for the decision. The summary should be compact but still cover all details from the original document, including new entities to ensure it is rich in information and meets our entity density requirement."
             },
             {
-                "role":"user", "content": f"Here is the Article: {enhanced_article}"},
+                "role":"user", "content": f"Here is the Article: {article}, Beneficiary Details: {beneficiary_details}, Key Reasons: {key_reasons}"},
             {
                 "role":"user",
                 "content": "The generated summary should be about 300 words",
