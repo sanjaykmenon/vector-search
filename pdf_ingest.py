@@ -52,7 +52,7 @@ class InitialSummary(BaseModel):
     """
     summary: str = Field(
         ...,
-        description="This is a summary of the article provided which is overly verbose and uses fillers. It should be roughly 500 words in length",
+        description="This is a summary of the article provided which is descriptive and verbose. It should be roughly 500 words in length",
     )
     
 class RewrittenSummary(BaseModel):
@@ -81,7 +81,7 @@ class RewrittenSummary(BaseModel):
     )
     missing: List[str] = Field(
         default_factory=list,
-        description="This is a list of 1-3 informative Entities from the Article that are missing from the new summary which should be included in the next generated summary.",
+        description="This is a list of 2-4 informative Entities from the Article that are missing from the new summary which should be included in the next generated summary.",
     )
 
     @field_validator("summary")
@@ -155,53 +155,53 @@ def summarize_article(article: str, summary_steps: int = 1):
     summary_chain.append(summary.summary)
     print(f"Initial Summary:\n{summary.summary}\n")
 
-    prev_summary = None
-    summary_chain.append(summary.summary)
-    for i in range(summary_steps):
-        missing_entity_message = (
-            []
-            if prev_summary is None
-            else [
-                {
-                    "role": "user",
-                    "content": f"Please include these Missing Entities: {','.join(prev_summary.missing)}",
-                },
-            ]
-        )
-        new_summary: RewrittenSummary = instructor_client.chat.completions.create( 
-            model=GPT_MODEL,
-            messages=[
-                {
-                    "role": "system",
-                    "content": """
-                You are going to generate an increasingly concise,entity-dense summary of the following article.
+    # prev_summary = None
+    # summary_chain.append(summary.summary)
+    # for i in range(summary_steps):
+    #     missing_entity_message = (
+    #         []
+    #         if prev_summary is None
+    #         else [
+    #             {
+    #                 "role": "user",
+    #                 "content": f"Please include these Missing Entities: {','.join(prev_summary.missing)}",
+    #             },
+    #         ]
+    #     )
+    #     new_summary: RewrittenSummary = instructor_client.chat.completions.create( 
+    #         model=GPT_MODEL,
+    #         messages=[
+    #             {
+    #                 "role": "system",
+    #                 "content": """
+    #             You are going to generate an increasingly concise,entity-dense summary of the following article.
 
-                Perform the following two tasks
-                - Identify 1-3 informative entities from the following article which is missing from the previous summary
-                - Write a new denser summary of identical length which covers every entity and detail from the previous summary plus the Missing Entities
+    #             Perform the following two tasks
+    #             - Identify 1-3 informative entities from the following article which is missing from the previous summary
+    #             - Write a new denser summary of identical length which covers every entity and detail from the previous summary plus the Missing Entities
 
-                Guidelines
-                - Make every word count: re-write the previous summary to improve flow and make space for additional entities
-                - Make space with fusion, compression, and removal of uninformative phrases like "the article discusses".
-                - The summaries should become highly dense and concise yet self-contained, e.g., easily understood without the Article.
-                - Missing entities can appear anywhere in the new summary
-                - Never drop entities from the previous summary. If space cannot be made, add fewer new entities.
-                """,
-                },
-                {"role": "user", "content": f"Here is the Article: {article}"},
-                {
-                    "role": "user",
-                    "content": f"Here is the previous summary: {summary_chain[-1]}",
-                },
-                *missing_entity_message,
-            ],
-            max_retries=2, 
-            max_tokens=3000,
-            response_model=RewrittenSummary,
-        )
-        summary_chain.append(new_summary.summary)
-        print(f"Summary Revision {i+1}:\n{new_summary.summary}\n") 
-        prev_summary = new_summary
+    #             Guidelines
+    #             - Make every word count: re-write the previous summary to improve flow and make space for additional entities
+    #             - Make space with fusion, compression, and removal of uninformative phrases like "the article discusses".
+    #             - The summaries should become highly dense and concise yet self-contained, e.g., easily understood without the Article.
+    #             - Missing entities can appear anywhere in the new summary
+    #             - Never drop entities from the previous summary. If space cannot be made, add fewer new entities.
+    #             """,
+    #             },
+    #             {"role": "user", "content": f"Here is the Article: {article}"},
+    #             {
+    #                 "role": "user",
+    #                 "content": f"Here is the previous summary: {summary_chain[-1]}",
+    #             },
+    #             *missing_entity_message,
+    #         ],
+    #         max_retries=2, 
+    #         max_tokens=3000,
+    #         response_model=RewrittenSummary,
+    #     )
+    #     summary_chain.append(new_summary.summary)
+    #     print(f"Summary Revision {i+1}:\n{new_summary.summary}\n") 
+    #     prev_summary = new_summary
     return summary_chain[-1]
 
 
