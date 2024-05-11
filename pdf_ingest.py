@@ -112,9 +112,9 @@ class InitialSummary(BaseModel):
 
 class DocumentInfo(BaseModel):
     title: str = Field(..., description="The title of the document with specific details")
-    beneficiary_details: List[str] = Field(..., description="provide details of beneficiary that can be used to provide context to the document")
+    beneficiary_details: List[str] = Field(..., description="provide details of beneficiary such as where they are from, what did they do and anything else that can be used to uniquely identify them")
     beneficiary_status: str = Field(..., description="provide details of the type of visa / status")
-    key_reasons: List[str] = Field(..., description="Provide details of reasons explaining the decision on the petition (accepted, denied, or dismissed). Include details of the evidence that was presented.")
+    key_reasons: List[str] = Field(..., description="Provide detailed reasons explaining the evidence that was presented for the petition and corresponding reasons why the petition was denied or approved or any other decision was made")
     summary: List[str] = Field(..., description="add details of entites, people, locations and any other specific detail")
     date_of_application: dt = Field(..., description="date present in document")
     summary_embedding: List[float] = Field(..., description="OpenAI embedding of the summary")
@@ -144,7 +144,7 @@ def summarize_article(article: str, beneficiary_details: List[str], key_reasons:
         messages=[
             {
                 "role": "system",
-                "content": "You are an expert in immigration law. Write a concise summary of the following document that includes information such as the beneficiary details, relevant evidence presented and the key reasons for the decision. The summary should be compact but still cover all details from the original document, including new entities to ensure it is rich in information and meets our entity density requirement."
+                "content": "You are an expert in immigration law. Write a concise summary of the following document that includes information such as the beneficiary details, relevant evidence presented and the corresponding reasons why the petition was denied or approved or any other decision was made. The summary should be compact but still cover all details from the original document, including new entities to ensure it is rich in information."
             },
             {
                 "role":"user", "content": f"Here is the Article: {article}, Beneficiary Details: {beneficiary_details}, Key Reasons: {key_reasons}"},
