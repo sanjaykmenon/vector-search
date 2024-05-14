@@ -46,14 +46,24 @@ def extract_text(pdf_path: str) -> str:
 # Pydantic model for the initial summary
 class InitialSummary(BaseModel):
     """
-    This is an initial summary which should be long (15 - 20 sentences, ~500 words)
+    This is an initial summary which should be long (15 - 20 sentences, ~400 words)
     yet highly non-specific, containing little information beyond the entities marked as missing.
-    Use overly verbose languages and fillers (Eg. This article discusses) to reach ~500 words.
+    Use overly verbose languages and fillers (Eg. This article discusses) to reach ~400 words.
     """
     summary: str = Field(
         ...,
-        description="This is a summary of the article provided which is descriptive and verbose. It should be roughly 500 words in length",
+        description="This is a summary of the article provided which is descriptive and verbose. It should be roughly 400 words in length",
     )
+    @field_validator('summary')
+    def min_length(cls, summary: str) -> str:
+        """
+        Validates that the summary is at least 200 words long.
+        """
+        tokens = nltk.word_tokenize(summary)
+        num_tokens = len(tokens)
+        if num_tokens < 50:
+            raise ValueError("The current summary is too short. Please make sure that you generate a new summary that is around 50 words long.")
+        return summary
     
 # class RewrittenSummary(BaseModel):
 #     """
@@ -118,6 +128,7 @@ class DocumentInfo(BaseModel):
     summary: List[str] = Field(..., description="add details of entites, people, locations and any other specific detail")
     date_of_application: dt = Field(..., description="date present in document")
     summary_embedding: List[float] = Field(..., description="OpenAI embedding of the summary")
+    footnotes: List[str] = Field(..., description="provide footnotes, citations to any other references present in the document")
 
     summary: str = None
     #summary_embedding: float = None
@@ -150,7 +161,7 @@ def summarize_article(article: str, beneficiary_details: List[str], key_reasons:
                 "role":"user", "content": f"Here is the Article: {article}, Beneficiary Details: {beneficiary_details}, Key Reasons: {key_reasons}"},
             {
                 "role":"user",
-                "content": "The generated summary should be about 300 words",
+                "content": "The generated summary should be about 450 words",
             },
         ],
         max_retries=2,
@@ -190,7 +201,7 @@ def get_structured_output(text: str):
     Uses the patched OpenAI client to get structured output as JSON.
     """
     response = instructor_client.chat.completions.create(
-        model="gpt-4-turbo-2024-04-09",
+        model="gpt-4o-2024-05-13",
         response_model=DocumentInfo,  
         messages=[
             {"role": "user", "content": f"As an immigration attorney, your task is to extract all relevant entities from this document. Your goal is to provide as much detail with specificity about this document as you can. \n{text}"}
