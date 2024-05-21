@@ -128,6 +128,7 @@ class DocumentInfo(BaseModel):
     summary: List[str] = Field(..., description="add details of entites, people, locations and any other specific detail")
     date_of_application: dt = Field(..., description="date present in document")
     summary_embedding: List[float] = Field(..., description="OpenAI embedding of the summary")
+    full_text: str = Field(..., description="full text of the document")
     footnotes: List[str] = Field(..., description="provide footnotes, citations to any other references present in the document")
 
     summary: str = None
