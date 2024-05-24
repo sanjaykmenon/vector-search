@@ -210,7 +210,8 @@ def get_structured_output(text: str):
     )
     return response
 
-#TODO write a function to generate openai embedding from summary attribute of DocumentInfo
+
+
 
 def generate_openai_embedding(text: str):
     response = openai_client.embeddings.create(
@@ -218,6 +219,23 @@ def generate_openai_embedding(text: str):
         model="text-embedding-3-small"
     )
     return response.data[0].embedding
+
+
+
+db = lancedb.connect("./.lancedb")
+
+db.create_table("oa1_aao", {
+    "id": vector(),
+    "title": vector(),
+    "beneficiary_details": vector(),
+    "beneficiary_status": vector(),
+    "key_reasons": vector(),
+    "summary": vector(),
+    "date_of_application": vector(),
+    "summary_embedding": vector(),
+    "full_text": vector(),
+    "footnotes": vector()
+})
 
 
 def main(pdf_path: str):
