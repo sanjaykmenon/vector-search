@@ -16,6 +16,7 @@ from dotenv import load_dotenv
 import os
 import supabase
 import uuid
+import glob
 
 load_dotenv()
 
@@ -214,7 +215,6 @@ def get_structured_output(text: str):
     )
     return response
 
-#TODO write a function to generate openai embedding from summary attribute of DocumentInfo
 
 def generate_openai_embedding(text: str):
     response = openai_client.embeddings.create(
@@ -224,41 +224,47 @@ def generate_openai_embedding(text: str):
     return response.data[0].embedding
 
 
-def main(pdf_path: str):
-    text = extract_text(pdf_path)
-    document_info = get_structured_output(text)
-    document_summary = summarize_article(text, document_info.beneficiary_details, document_info.key_reasons)
-    document_info.set_summary(document_summary)
-    embedding = generate_openai_embedding(document_summary)
-    document_info.summary_embedding = embedding
-    #convert to a dictiionary
-    document_info_dict = document_info.model_dump()
+def main(pdf_folder: str):
+    #get list of all PDF files in the folder
+    pdf_files = glob.glob(os.path.join(pdf_folder, "*.pdf"))
 
-    document_info_dict['id'] = str(uuid.uuid4())
-    document_info_dict['created_at'] = datetime.now().isoformat()
-    #document_info_dict['date_of_application']  = datetime.strptime(document_info_dict['date_of_application'], '%Y-%m-%d')
-    document_info_dict['date_of_application'] = document_info_dict['date_of_application'].isoformat() #do we need 2 steps?
-    #document_info_dict['beneficiary_details'] = [document_info_dict['beneficiary_details']]
+    for pdf_file in pdf_files:
+
+        text = extract_text(pdf_file)
+        document_info = get_structured_output(text)
+        document_summary = summarize_article(text, document_info.beneficiary_details, document_info.key_reasons)
+        document_info.set_summary(document_summary)
+        document_info.set_full_text(text)
+        embedding = generate_openai_embedding(document_summary)
+        document_info.summary_embedding = embedding
+        #convert to a dictiionary
+        document_info_dict = document_info.model_dump()
+
+        document_info_dict['id'] = str(uuid.uuid4())
+        document_info_dict['created_at'] = datetime.now().isoformat()
+        #document_info_dict['date_of_application']  = datetime.strptime(document_info_dict['date_of_application'], '%Y-%m-%d')
+        document_info_dict['date_of_application'] = document_info_dict['date_of_application'].isoformat() #do we need 2 steps?
+        #document_info_dict['beneficiary_details'] = [document_info_dict['beneficiary_details']]
 
 
-    try:
-        db_table_write = supabase.table("oa1_aao").insert(document_info_dict).execute()
+        try:
+            db_table_write = supabase.table("oa1_aao").insert(document_info_dict).execute()
 
-    except ValueError as e:
-        print(f"Error inserting data: {e}")
+        except ValueError as e:
+            print(f"Error inserting data: {e}")
 
-        print("-----------------")
-        print("Beneficiary Details")
-        print(document_info_dict.beneficiary_details)
-        print("-----------------")
-        print("Key Reasons")
-        print(document_info_dict.key_reasons)
-        print("-----------------")
-        print("Summary")
-        print(document_info_dict.summary)
+            print("-----------------")
+            print("Beneficiary Details")
+            print(document_info_dict.beneficiary_details)
+            print("-----------------")
+            print("Key Reasons")
+            print(document_info_dict.key_reasons)
+            print("-----------------")
+            print("Summary")
+            print(document_info_dict.summary)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Extract and process PDF text into structured JSON data.")
-    parser.add_argument('pdf_path', type=str, help='Path to the PDF file')
+    parser.add_argument('pdf_folder', type=str, help='Path to the PDF folder')
     args = parser.parse_args()
-    main(args.pdf_path)
+    main(args.pdf_folder)
