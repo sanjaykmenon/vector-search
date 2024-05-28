@@ -5,14 +5,40 @@ import json
 import requests
 import psycopg2
 from psycopg2 import sql
+import instructor
+import supabase
+from openai import OpenAI
+from pydantic import BaseModel, Field, field_validator
+
+load_dotenv()
+
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+SUPABASE_KEY = os.getenv("SUPABASE_KEY")
+GPT_MODEL = os.getenv("GPT_MODEL")
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+DB_NAME = os.getenv("DB_NAME")
+DB_USER = os.getenv("DB_USER")
+DB_PASSWORD = os.getenv("DB_PASSWORD")
+DB_HOST = os.getenv("DB_HOST")
+DB_PORT = os.getenv("DB_PORT")
+
+supabase = supabase.create_client(SUPABASE_URL, SUPABASE_KEY)
+
+
+# Initialize the instructor client
+instructor_client = instructor.from_openai(OpenAI())
+
+#openai client
+openai_client = OpenAI()
+
 
 # Define your PostgreSQL database connection parameters
 db_params = {
-    'dbname': 'postgres',
-    'user': 'postgres.lnnuafnvfshwlelnimsu',
-    'password': 'aaotestcasepassword',
-    'host': 'aws-0-us-west-1.pooler.supabase.com',
-    'port': '5432'
+    'dbname': DB_NAME,
+    'user': DB_USER,
+    'password': DB_PASSWORD,
+    'host': DB_HOST,
+    'port': DB_PORT
 }
 
 # Define the query embedding, match threshold, and match count
@@ -21,11 +47,11 @@ match_threshold = 1.0
 match_count = 5
 
 # Define the SQL query using placeholders (%s)
-query2 = sql.SQL("""
-                 select *
-from information_schema.routines
-where routine_name='match_documents'
-                 """)
+# query2 = sql.SQL("""
+#                  select *
+# from information_schema.routines
+# where routine_name='match_documents'
+#                  """)
 
 query = sql.SQL("""
     SELECT *
@@ -36,15 +62,48 @@ query = sql.SQL("""
     )
 """)
 
-# Use context managers to handle database connection and cursor
-with psycopg2.connect(**db_params) as conn:
-    with conn.cursor() as cur:
-        # Execute the query with the provided parameters
-        cur.execute(query, (query_embedding, match_threshold, match_count))
-        
-        # Fetch all results
-        results = cur.fetchall()
+def generate_openai_embedding(text: str):
+    response = openai_client.embeddings.create(
+        input=text,
+        model="text-embedding-3-small"
+    )
+    return response.data[0].embedding
 
-# Process the results
-for row in results:
-    print(row)
+def search_database(query_embedding, match_threshold, match_count):
+    with psycopg2.connect(**db_params) as conn:
+        with conn.cursor() as cur:
+            cur.execute(query, (query_embedding, match_threshold, match_count))
+            results = cur.fetchall()
+    return results
+
+def get_llm_response(context):
+    prompt = "Based on the following context, answer the question:\n\n" + context + "\nWhat is the main topic?"
+    response = openai_client.Completion.create(
+      engine="text-davinci-002",
+      prompt=prompt,
+      max_tokens=100
+    )
+    return response.choices[0].text.strip()
+
+def main():
+    # Get the user query from the command line arguments
+    user_query = sys.argv[1]
+
+    # Convert the user query to embeddings
+    query_embedding = generate_openai_embedding(user_query)
+
+    # Use the search_database function to run a vector search
+    results = search_database(query_embedding, match_threshold, match_count)
+
+    # Convert the results to a string to use as context
+    context = ""
+    for row in results:
+        context += str(row) + "\n"
+
+    # Feed the context to the get_llm_response function to get a final answer
+    answer = get_llm_response(context)
+
+    print(answer)
+
+if __name__ == "__main__":
+    main()
