@@ -7,8 +7,12 @@ import psycopg2
 from psycopg2 import sql
 import instructor
 import supabase
+import openai
 from openai import OpenAI
 from pydantic import BaseModel, Field, field_validator
+from dotenv import load_dotenv
+import openai
+from openai import Completion
 
 load_dotenv()
 
@@ -62,46 +66,63 @@ query = sql.SQL("""
     )
 """)
 
-def generate_openai_embedding(text: str):
-    response = openai_client.embeddings.create(
-        input=text,
-        model="text-embedding-3-small"
-    )
-    return response.data[0].embedding
+def generate_openai_embedding(text: str) -> list:
+    try:
+        response = openai_client.embeddings.create(
+            input=text,
+            model="text-embedding-3-small"
+        )
+        return response.data[0].embedding
+    except Exception as e:
+        print(f"Error generating embedding: {e}")
+        return []
 
-def search_database(query_embedding, match_threshold, match_count):
-    with psycopg2.connect(**db_params) as conn:
-        with conn.cursor() as cur:
-            cur.execute(query, (query_embedding, match_threshold, match_count))
-            results = cur.fetchall()
-    return results
-
-def get_llm_response(context):
-    prompt = "Based on the following context, answer the question:\n\n" + context + "\nWhat is the main topic?"
-    response = openai_client.Completion.create(
-      engine="text-davinci-002",
-      prompt=prompt,
-      max_tokens=100
-    )
-    return response.choices[0].text.strip()
+def search_database(query_embedding: list, match_threshold: float, match_count: int) -> list:
+    try:
+        with psycopg2.connect(**db_params) as conn:
+            with conn.cursor() as cur:
+                cur.execute(query, (query_embedding, match_threshold, match_count))
+                results = cur.fetchall()
+        return results
+    except Exception as e:
+        print(f"Database search error: {e}")
+        return []
+def get_llm_response(context: str, user_query: str) -> str:
+    prompt = f"Based on the following context, as an expert immigration attorney, answer the question:\n\n{context}\n {user_query}?"
+    try:
+        response = openai.Completion.create(
+            engine="gpt-4o-2024-05-13",
+            prompt=prompt,
+            max_tokens=5000
+        )
+        return response.choices[0].text.strip()
+    except Exception as e:
+        print(f"Error generating LLM response: {e}")
+        return ""
 
 def main():
-    # Get the user query from the command line arguments
+    if len(sys.argv) < 2:
+        print("Please provide a user query as a command line argument.")
+        return
+
     user_query = sys.argv[1]
 
-    # Convert the user query to embeddings
     query_embedding = generate_openai_embedding(user_query)
+    if not query_embedding:
+        print("Failed to generate embedding for the user query.")
+        return
 
-    # Use the search_database function to run a vector search
+    match_threshold = 1  # Example threshold
+    match_count = 3  # Example count
+
     results = search_database(query_embedding, match_threshold, match_count)
+    if not results:
+        print("No results found in the database.")
+        return
 
-    # Convert the results to a string to use as context
-    context = ""
-    for row in results:
-        context += str(row) + "\n"
+    context = "\n".join([str(row) for row in results])
 
-    # Feed the context to the get_llm_response function to get a final answer
-    answer = get_llm_response(context)
+    answer = get_llm_response(context, user_query)
 
     print(answer)
 

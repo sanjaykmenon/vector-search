@@ -120,12 +120,16 @@ class InitialSummary(BaseModel):
 #             raise ValueError(f"The summary of {v} has too few entities. Please regenerate a new summary with more new entities added to it. Remember that new entities can be added at any point of the summary.")
 #         return v
 
+class Reason(BaseModel):
+    reason: str = Field(..., description="The individual reason for approval or denial")
+    cfr_code: str = Field(..., description="The respective CFR code")
+    evidence: str = Field(..., description="The evidence provided for the reason")
 
 class DocumentInfo(BaseModel):
     title: str = Field(..., description="The title of the document with specific details")
     beneficiary_details: List[str] = Field(..., description="extract details of beneficiary such as where they are from, what did they do and anything else that can be used to uniquely identify them")
     beneficiary_status: str = Field(..., description="extract details of the type of visa / status")
-    key_reasons: List[str] = Field(..., description="extract detailed reasons explaining the evidence that was presented for the petition and corresponding reasons why the petition was denied or approved or any other decision was made")
+    key_reasons: List[Reason] = Field(..., description="extract the individual reasons for approval or denial, the respective CFR codes, and the evidence provided for each reason. ")
     summary: List[str] = Field(..., description="add details of entites, people, locations and any other specific detail")
     date_of_application: dt = Field(..., description="extract date of the document")
     summary_embedding: List[float] = Field(..., description="OpenAI embedding of the summary")
@@ -148,11 +152,13 @@ class DocumentInfo(BaseModel):
 # Load the Spacy model
 nlp = spacy.load("en_core_web_sm")
 
-def summarize_article(article: str, beneficiary_details: List[str], key_reasons: List[str], summary_steps: int = 1):
+def summarize_article(article: str, beneficiary_details: List[str], key_reasons: List[Reason], summary_steps: int = 1):
     summary_chain = []
+    # Convert each Reason object to a string
+    key_reasons_str = [json.dumps(reason.model_dump()) for reason in key_reasons]
 
     # Incorporate beneficiary details and key reasons into the article
-    enhanced_article = f"{article}\n\nBeneficiary Details: {' '.join(beneficiary_details)}\n\nKey Reasons: {' '.join(key_reasons)}"
+    enhanced_article = f"{article}\n\nBeneficiary Details: {' '.join(beneficiary_details)}\n\nKey Reasons: {' '.join(key_reasons_str)}"
 
     #generating initial summary
     summary: InitialSummary = instructor_client.chat.completions.create(
@@ -227,6 +233,9 @@ def generate_openai_embedding(text: str):
 def main(pdf_folder: str):
     #get list of all PDF files in the folder
     pdf_files = glob.glob(os.path.join(pdf_folder, "*.pdf"))
+
+    pdf_files = pdf_files[:10]
+ 
 
     for pdf_file in pdf_files:
 
