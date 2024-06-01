@@ -8,7 +8,7 @@
 2. Other Document Metadata for DB Schema
 
 
-## Setup LanceDB
+## Setup Supabase
 1. Setup Document schema to be written to lancedb
 2. Embedding function to write a document to DB
 3. Write function to lancedb from parsed pdf.
