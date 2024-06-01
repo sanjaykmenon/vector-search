@@ -128,3 +128,20 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
+#fix this my dude.
+
+
+# take user query
+
+#structure user query to make it suitable for vector search for embeddings
+
+#convert to embeddings
+
+#vector search
+
+#return summary (for now and not full text)
+
+#return original context to LLM
+
