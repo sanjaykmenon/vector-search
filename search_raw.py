@@ -12,7 +12,6 @@ from openai import OpenAI
 from pydantic import BaseModel, Field, field_validator
 from dotenv import load_dotenv
 import openai
-from openai import Completion
 
 load_dotenv()
 
