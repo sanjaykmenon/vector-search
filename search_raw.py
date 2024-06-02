@@ -84,10 +84,13 @@ def search_database(query_embedding: list, match_threshold: float, match_count: 
         print(f"Database search error: {e}")
         return []
     
+# the idea here is to have an assistant that provides an analysis as an immigration 
+# expert with the context provided.
+
 def get_llm_response(context: str, user_query: str) -> str:
     prompt = f"Based on the following context, as an expert immigration attorney, answer the question:\n\n{context}\n {user_query}?"
     try:
-        response = openai.Completion.create(
+        response = openai.completion.create(
             engine="gpt-4o-2024-05-13",
             prompt=prompt,
             max_tokens=5000
@@ -123,9 +126,7 @@ def main():
             return
         else:
             print("Results found in the database.")
-            results_json = json.dumps(results)
-            print(results)
-            return results_json
+
 
     # context = "\n".join([str(row) for row in results])
 
