@@ -72,12 +72,14 @@ def generate_openai_embedding(text: str) -> list:
         return []
 
 def search_database(query_embedding: list, match_threshold: float, match_count: int) -> list:
+    
     try:
         with psycopg2.connect(**db_params) as conn:
             with conn.cursor() as cur:
                 cur.execute(query, (query_embedding, match_threshold, match_count))
                 results = cur.fetchall()
         return results
+    
     except Exception as e:
         print(f"Database search error: {e}")
         return []
@@ -110,17 +112,20 @@ def main():
         return
     else:
         print("Embedding generated successfully.")
-        print(query_embedding)
+        #print(query_embedding)
         return query_embedding
     
 
-    # match_threshold = 1  # Example threshold
-    # match_count = 3  # Example count
+    match_threshold = 1  # Example threshold
+    match_count = 3  # Example count
 
-    # results = search_database(query_embedding, match_threshold, match_count)
-    # if not results:
-    #     print("No results found in the database.")
-    #     return
+    results = search_database(query_embedding, match_threshold, match_count)
+    if not results:
+        print("No results found in the database.")
+        return
+    else:
+        print("Results found in the database.")
+        return results
 
     # context = "\n".join([str(row) for row in results])
 
