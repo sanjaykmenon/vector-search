@@ -113,19 +113,19 @@ def main():
     else:
         print("Embedding generated successfully.")
         #print(query_embedding)
-        return query_embedding
     
+        match_threshold = 1  # Example threshold
+        match_count = 5  # Example count
 
-    match_threshold = 1  # Example threshold
-    match_count = 3  # Example count
-
-    results = search_database(query_embedding, match_threshold, match_count)
-    if not results:
-        print("No results found in the database.")
-        return
-    else:
-        print("Results found in the database.")
-        return results
+        results = search_database(query_embedding, match_threshold, match_count)
+        if not results:
+            print("No results found in the database.")
+            return
+        else:
+            print("Results found in the database.")
+            results_json = json.dumps(results)
+            print(results)
+            return results_json
 
     # context = "\n".join([str(row) for row in results])
 
