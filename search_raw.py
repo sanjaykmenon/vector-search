@@ -88,14 +88,23 @@ def search_database(query_embedding: list, match_threshold: float, match_count: 
 # expert with the context provided.
 
 def get_llm_response(context: str, user_query: str) -> str:
-    prompt = f"Based on the following context, as an expert immigration attorney, answer the question. You may have some context that is not relevant to the question, ignore those, and only use what is necessary:\n\n{context}\n {user_query}?"
+    #prompt = f"Based on the following context, as an expert immigration attorney, answer the question. You may have some context that is not relevant to the question, ignore those, and only use what is necessary:\n\n{context}\n {user_query}?"
     try:
-        response = openai.completions.create(
-            engine="gpt-4o-2024-05-13",
-            prompt=prompt,
-            max_tokens=5000
+        response = openai_client.chat.completions.create(
+            model="gpt-4o-2024-05-13",
+            messages=[
+        {
+            "role": "system",
+            "content": "You are an expert immigration attorney. Answer the following question based on the provided context. Ignore any irrelevant information and only use what is necessary to provide a comprehensive response."
+        },
+        {
+            "role": "user",
+            "content": f"{context}\n\n{user_query}?"
+        }
+    ],
+            max_tokens=4000
         )
-        return response.choices[0].text.strip()
+        return response.choices[0].message.content.strip()
     except Exception as e:
         print(f"Error generating LLM response: {e}")
         return ""
