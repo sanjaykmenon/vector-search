@@ -126,7 +126,9 @@ def main():
             return
         else:
             print("Results found in the database.")
-            get_llm_response(results, user_query)
+            answer = get_llm_response(results, user_query)
+            print(answer)
+
 
 
 
