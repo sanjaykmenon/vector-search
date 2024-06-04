@@ -95,7 +95,7 @@ def get_llm_response(context: str, user_query: str) -> str:
             messages=[
         {
             "role": "system",
-            "content": "You are an expert immigration attorney. Answer the following question based on the provided context. Ignore any irrelevant information and only use what is necessary to provide a comprehensive response."
+            "content": "You are an expert immigration attorney. Answer the following question based on the provided context. Ignore any irrelevant information and only use what is necessary to provide a comprehensive response. Provide details on reasons for meeting / not meeting any criteria, analysis and don't make them verbose."
         },
         {
             "role": "user",
