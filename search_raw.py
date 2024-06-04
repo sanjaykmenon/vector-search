@@ -88,9 +88,9 @@ def search_database(query_embedding: list, match_threshold: float, match_count: 
 # expert with the context provided.
 
 def get_llm_response(context: str, user_query: str) -> str:
-    prompt = f"Based on the following context, as an expert immigration attorney, answer the question:\n\n{context}\n {user_query}?"
+    prompt = f"Based on the following context, as an expert immigration attorney, answer the question. You may have some context that is not relevant to the question, ignore those, and only use what is necessary:\n\n{context}\n {user_query}?"
     try:
-        response = openai.completion.create(
+        response = openai.completions.create(
             engine="gpt-4o-2024-05-13",
             prompt=prompt,
             max_tokens=5000
@@ -126,6 +126,8 @@ def main():
             return
         else:
             print("Results found in the database.")
+            get_llm_response(results, user_query)
+
 
 
     # context = "\n".join([str(row) for row in results])
