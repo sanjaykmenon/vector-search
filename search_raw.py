@@ -139,25 +139,17 @@ def main():
             print(answer)
 
 
-
-
-    # context = "\n".join([str(row) for row in results])
-
-    # answer = get_llm_response(context, user_query)
-
-    # print(answer)
-
 if __name__ == "__main__":
     main()
 
 
-#fix this my dude.
-
-
-#structure user query to make it suitable for vector search for embeddings
-
-
-#return summary (for now and not full text)
-
-#return original context to LLM
-
+# TODO: Implement continuous questions chat for follow-ups.
+# TODO: Provide full text / unique ID of a specific case in the original context for use by the LLM to retrieve the whole text for further analysis.
+# TODO: Allow getting user input of a specific case in the first response and obtaining more details on that programmatically.
+# TODO: Implement functionality for EB-2 NIW and EB-1 categories.
+# TODO: Populate the database with 100 records of each case type for an MVP.
+# TODO: Create an API using FastAPI for the entire application.
+# TODO: Use Docker to containerize the application.
+# TODO: Create a basic front end (details to be hashed out).
+# TODO: For the frontend MVP, use Streamlit or something easy and simple.
+# TODO: Get input from Lorenz on the first-gen app.
