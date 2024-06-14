@@ -144,6 +144,7 @@ if __name__ == "__main__":
 
 
 # TODO: Implement continuous questions chat for follow-ups.
+# TODO: original rag context should provide uid or metadata for further querying  / follow-up questions.
 # TODO: Provide full text / unique ID of a specific case in the original context for use by the LLM to retrieve the whole text for further analysis.
 # TODO: Allow getting user input of a specific case in the first response and obtaining more details on that programmatically.
 # TODO: Implement functionality for EB-2 NIW and EB-1 categories.
