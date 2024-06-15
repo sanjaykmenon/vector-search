@@ -84,6 +84,18 @@ def search_database(query_embedding: list, match_threshold: float, match_count: 
         print(f"Database search error: {e}")
         return []
     
+def get_metadata_from_db(metadata_id: str) -> dict:
+    try:
+        with psycopg2.connect(**db_params) as conn:
+            with conn.cursor() as cur:
+                cur.execute("SELECT a.full_text FROM oa1_aao as a WHERE id = %s", (metadata_id,))
+                metadata = cur.fetchall()
+        return metadata
+    
+    except Exception as e:
+        print(f"Error retrieving full case details: {e}")
+        return {}
+    
 # the idea here is to have an assistant that provides an analysis as an immigration 
 # expert with the context provided.
 
@@ -104,7 +116,18 @@ def get_llm_response(context: str, user_query: str) -> str:
     ],
             max_tokens=4000
         )
-        return response.choices[0].message.content.strip()
+        llm_response = response.choices[0].message.content.strip()
+
+        follow_up  = "Are you interested in more details on this case or do you have any other questions?"
+
+        print(f"{llm_response}\n\n{follow_up}")
+
+        user_input = input("Please enter your response: ")
+
+        if user_input.lower() == "yes":
+            metadata = get_metadata_from_db(metadata_id)
+
+    
     except Exception as e:
         print(f"Error generating LLM response: {e}")
         return ""
