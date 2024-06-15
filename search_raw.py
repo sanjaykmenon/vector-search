@@ -89,7 +89,7 @@ def get_metadata_from_db(metadata_id: str) -> dict:
         with psycopg2.connect(**db_params) as conn:
             with conn.cursor() as cur:
                 cur.execute("SELECT a.full_text FROM oa1_aao as a WHERE id = %s", (metadata_id,))
-                metadata = cur.fetchall()
+                metadata = cur.fetchall() #maybe one initially and all later?
         return metadata
     
     except Exception as e:
@@ -125,7 +125,7 @@ def get_llm_response(context: str, user_query: str) -> str:
         user_input = input("Please enter your response: ")
 
         if user_input.lower() == "yes":
-            metadata = get_metadata_from_db(metadata_id)
+            metadata = get_metadata_from_db(metadata_id) #how to expose only the id here?
 
     
     except Exception as e:
